@@ -107,6 +107,21 @@ class InstallTests(unittest.TestCase):
         self.assertEqual((self.app / "collab.py").read_text(), "# new version\n")
         self.assertEqual((self.data / "notes.txt").read_text(), "keep")
 
+    def test_interrupted_first_install_can_resume_from_its_pending_marker(self):
+        with patch.object(installer.shutil, "copyfile", side_effect=OSError("simulated copy failure")):
+            with self.assertRaisesRegex(OSError, "simulated copy failure"):
+                installer.install(self.app, self.data, None, source=self.source, platform="linux")
+        marker = json.loads((self.app / installer.MARKER).read_text(encoding="utf-8"))
+        self.assertEqual(marker["install_dir"], str(self.app))
+        self.assertEqual(marker["status"], "pending")
+        self.assertFalse((self.app / "collab.py").exists())
+
+        installer.install(self.app, self.data, None, source=self.source, platform="linux")
+
+        completed = json.loads((self.app / installer.MARKER).read_text(encoding="utf-8"))
+        self.assertEqual(completed["status"], "complete")
+        self.assertTrue((self.app / "collab.py").is_file())
+
     def test_refuses_unrelated_nonempty_install_folder_and_nested_data(self):
         self.app.mkdir()
         (self.app / "mine.txt").write_text("preserve", encoding="utf-8")

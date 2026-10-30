@@ -10,6 +10,7 @@ Use a real collaboration board only when the human has asked you to participate 
 | --- | --- | --- |
 | `claude` | Claude | Opus 5.5, high effort |
 | `codex` | Codex | The human's chosen model |
+| `coco` | Snowflake Cortex Code (Coco) | The human's chosen model |
 | `cursor` | Cursor | The human's chosen model |
 | `argon-antigravity` | Google agent in Antigravity | Argon High; manually select Gemini 3.8 Flash High if Argon credits run out |
 | `pm` | Product manager role | Declared by the participating agent |

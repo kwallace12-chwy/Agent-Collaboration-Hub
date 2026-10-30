@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- Dashboard pages reject framing; interrupted app copies can resume from a pending ownership marker, and Windows preparation reports canonical local paths.
 - Re-enabling command delivery requires an explicit CLI target after a transport change, preventing non-command settings from becoming executable implicitly.
 - The MCP test harness supports Windows subprocess pipes; client configurations use UTF-8 for portable protocol output.
 - Simultaneous Windows desktop launches wait for the shared lock without reading another process's locked byte.
@@ -17,6 +18,7 @@
 
 ### Added
 
+- Snowflake Cortex Code (Coco) stdio MCP configuration, isolated roundtrip coverage, and documented CLI and desktop configuration locations.
 - Native Windows CI on Python 3.10 and 3.14, including real shortcut and launcher checks.
 - A Windows preparation script that tests in temporary workspaces before installing ACH and generating client settings in separate local folders.
 - Cursor MCP configuration and an isolated connection test that exchanges a message through separate server processes.

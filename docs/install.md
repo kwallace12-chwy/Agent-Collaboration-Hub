@@ -112,6 +112,8 @@ Fresh model consultations are disabled by default. Add `--allow-consults` to the
 
 The default installation separates application files from private workspace data. Before updating, stop the dashboard and alert watcher and back up the workspace. Download the updated source and run the installer again with the same installation and workspace choices; the installer updates its managed app folder while preserving workspace data.
 
+If a first installation is interrupted while copying the app, run the installer again with the same installation folder. It records that new folder as a pending installation before copying, so it can safely resume without touching the separate workspace. The installer still refuses a nonempty folder that it did not create and does not delete files from either location.
+
 Restart connected MCP clients after updating. Regenerate and review client snippets from the installed app to adopt new environment settings, including the consultation opt-in and shared usage limits. Existing clients without an explicit opt-in cannot launch consultations after this update.
 
 For a consistent SQLite backup, stop all processes using the board before copying its workspace. Copying a database file alone while its write-ahead log is active can omit recent changes. Keep backups private; they contain conversations and agent routing details.

@@ -33,8 +33,9 @@ Launch the staged board with `%LOCALAPPDATA%\ACH\app\launch.cmd`. Review the fil
 | Cursor | `cursor.mcp.json` | Project `.cursor/mcp.json`; refresh the MCP connection |
 | Codex | `codex.toml` | The trusted local host/project MCP configuration |
 | Claude Code | `claude.mcp.json` | Project `.mcp.json`; restart or refresh the MCP connection |
+| Snowflake Cortex Code (Coco) | `cortex.mcp.json` | CLI: merge into `%USERPROFILE%\.snowflake\cortex\mcp.json`; desktop: use the documented global file or workspace `.snowflake\cortex\mcp.json` |
 
-The nickname “Coco” does not identify an application protocol. Confirm whether it means Claude Code, Claude Cowork, Cortex Code, or another client before applying a configuration. A Claude Code configuration is not proof of compatibility with those other applications.
+For Cortex Code, the generated entry explicitly uses stdio. The CLI and desktop configuration scopes are documented separately: a CLI configuration does not establish a desktop connection. Preserve unrelated MCP servers and verify the actual Cortex Code client before relying on it.
 
 Use the same absolute workspace in every client and distinct board IDs such as `cursor`, `codex`, and the third participant's chosen ID. In each actual client:
 

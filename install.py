@@ -100,6 +100,14 @@ def install(install_dir: Path, workspace: Path, desktop_dir: Path | None, *, sou
     if dry_run:
         return plan
     install_dir.mkdir(parents=True, exist_ok=True)
+    # Claim a newly created app folder before copying.  If a copy is interrupted,
+    # the pending marker lets this installer safely resume only that folder.
+    marker_path = install_dir / MARKER
+    pending_plan = {**plan, "status": "pending"}
+    with tempfile.NamedTemporaryFile(dir=install_dir, mode="w", encoding="utf-8", delete=False) as handle:
+        handle.write(json.dumps(pending_plan, indent=2) + "\n")
+        marker_temp = Path(handle.name)
+    os.replace(marker_temp, marker_path)
     for name in files:
         destination = install_dir / name
         # Do not follow an existing directory symlink out of this installation.
@@ -128,10 +136,11 @@ def install(install_dir: Path, workspace: Path, desktop_dir: Path | None, *, sou
     plan["installed_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     # Record a usable installation before optional shortcut creation. If the OS
     # rejects a shortcut, rerunning the installer can safely finish the install.
+    plan["status"] = "complete"
     with tempfile.NamedTemporaryFile(dir=install_dir, mode="w", encoding="utf-8", delete=False) as handle:
         handle.write(json.dumps(plan, indent=2) + "\n")
         marker_temp = Path(handle.name)
-    os.replace(marker_temp, install_dir / MARKER)
+    os.replace(marker_temp, marker_path)
     if desktop_dir:
         plan["shortcut"] = create_shortcut(install_dir, workspace, desktop_dir, python, platform, alerts)
     return plan

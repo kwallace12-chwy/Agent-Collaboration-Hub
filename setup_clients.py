@@ -34,6 +34,7 @@ def generate(workspace: Path, output: Path, python: str = sys.executable, *,
         "cursor.mcp.json": {"mcpServers": {"agent-collab": server}},
         "claude.mcp.json": {"mcpServers": {"agent-collab": {"type": "stdio", **server}}},
         "antigravity.mcp.json": {"mcpServers": {"agent-collab": server}},
+        "cortex.mcp.json": {"mcpServers": {"agent-collab": {"type": "stdio", **server}}},
     }
 
     def hook(client: str, agent: str, event: str) -> dict:

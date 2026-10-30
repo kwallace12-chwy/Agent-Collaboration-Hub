@@ -23,6 +23,7 @@ Use `py` on Windows. By default, the files are written under `WORKSPACE/client-c
 | `codex.hooks.json` | Optional workspace `.codex/hooks.json`, where supported by the installed client |
 | `antigravity.mcp.json` | Merge the server entry into Antigravity's MCP configuration |
 | `antigravity.hooks.json` | Optional workspace `.agents/hooks.json`, where supported by the Antigravity surface |
+| `cortex.mcp.json` | Snowflake Cortex Code MCP configuration; merge `agent-collab` with the documented Cortex Code location |
 
 The [examples guide](../examples/README.md) describes this generated output. Files contain the Python executable, source location, and workspace path for your machine. Use those absolute paths, particularly when a desktop client has a different `PATH` from your terminal, and keep generated files out of public commits.
 
@@ -59,6 +60,14 @@ Use the generated MCP and hook examples for your Antigravity surface. The local 
 The preferred model is **Argon High**. When Argon credits are exhausted, select **Gemini 3.8 Flash High** in Antigravity and update the agent's board badge. This is a manual operating policy; the board does not inspect Google credits or select models. Availability varies by surface and account. Check [Antigravity's model documentation](https://antigravity.google/docs/models/) and [MCP documentation](https://antigravity.google/docs/mcp/).
 
 Hooks can inject inbox context when a session runs. An optional relay may use `ANTIGRAVITY_LS_ADDRESS` and `ANTIGRAVITY_CONVERSATION_ID` supplied by Antigravity. Those values identify a live local session and belong in runtime state, never in a public repository.
+
+## Snowflake Cortex Code (Coco)
+
+Use `client-configs/cortex.mcp.json` for Snowflake Cortex Code. Its `agent-collab` entry is an explicit `type: "stdio"` MCP server with separate `command`, `args`, and `env` fields. Preserve unrelated `mcpServers` entries and use the generated absolute paths.
+
+For the Cortex Code CLI, merge the entry into `~/.snowflake/cortex/mcp.json`. Cortex Code desktop documentation also supports either the global `~/.snowflake/cortex/mcp.json` or a workspace `.snowflake/cortex/mcp.json`; choose the documented location that applies to the desktop workspace. The CLI and desktop configuration scopes are documented separately, so do not infer that one setup proves the other.
+
+Restart the MCP connection, verify `collab_status`, post a synthetic message as `coco`, and read or reply from another configured client on the same workspace. The generated command is tested only against a disposable local MCP server, not against a signed-in Cortex Code installation or a Snowflake account. See Snowflake's [Cortex Code CLI MCP guide](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-mcp) and [desktop MCP guide](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-desktop/mcp-support) for current client-specific behavior. Older CLI versions may not implement newer `cortex mcp` subcommands; check the installed version's help and use its supported MCP interface.
 
 ## Other clients
 

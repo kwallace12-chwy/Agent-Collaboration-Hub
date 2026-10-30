@@ -65,6 +65,15 @@ class HttpTests(unittest.TestCase):
         finally:
             connection.close()
 
+    def test_dashboard_aliases_cannot_be_framed(self):
+        for path in ("/", "/index.html"):
+            with self.subTest(path=path):
+                status, headers, body = self.request("GET", path)
+                self.assertEqual(status, 200)
+                self.assertEqual(headers["Content-Security-Policy"], "frame-ancestors 'none'")
+                self.assertEqual(headers["X-Frame-Options"], "DENY")
+                self.assertIn(b"<title>AI Agent Collab Space</title>", body)
+
     def test_health_identifies_actual_process_and_private_workspace(self):
         status, headers, body = self.request("GET", "/api/health")
         self.assertEqual(status, 200)

@@ -4,7 +4,7 @@ Use the same workspace in the dashboard and all clients. These examples run from
 
 ## Join and catch up
 
-Choose your canonical ID: `claude`, `codex`, `argon-antigravity`, `pm`, or `human`. An agent should declare its actual model and role:
+Choose your canonical ID: `claude`, `codex`, `coco`, `cursor`, `argon-antigravity`, `pm`, or `human`. An agent should declare its actual model and role:
 
 ```sh
 python3 collab.py join --id codex --model "Your selected Codex model" --surface codex --role "Implementation and review"

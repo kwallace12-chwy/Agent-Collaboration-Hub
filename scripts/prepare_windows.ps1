@@ -10,18 +10,6 @@ if ($env:OS -ne 'Windows_NT') {
     throw 'Run this preparation script on Windows with PowerShell 5.1 or later.'
 }
 $sourceRoot = Split-Path -Parent $PSScriptRoot
-if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'ACH\app' }
-if (-not $Workspace) { $Workspace = Join-Path $env:LOCALAPPDATA 'ACH\workspace' }
-$InstallDir = [IO.Path]::GetFullPath($InstallDir)
-$Workspace = [IO.Path]::GetFullPath($Workspace)
-if (Test-Path -LiteralPath $Workspace) {
-    if (-not (Test-Path -LiteralPath $Workspace -PathType Container)) {
-        throw 'The staging workspace must be a directory.'
-    }
-    if (Get-ChildItem -LiteralPath $Workspace -Force | Select-Object -First 1) {
-        throw 'Choose an empty staging workspace. Existing board data and client settings are not replaced.'
-    }
-}
 
 # Resolve the interpreter once so installation and generated configs use the same Python.
 $pythonPrefix = @()
@@ -40,6 +28,24 @@ $resolvedPython = & $Python @pythonPrefix -c 'import sys; sys.exit(1) if sys.ver
 if ($LASTEXITCODE -ne 0) { throw 'Python verification failed. No installation was attempted.' }
 $Python = ($resolvedPython | Select-Object -Last 1).Trim()
 if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) { throw 'Python did not return a usable executable path.' }
+
+# Resolve defaults and explicit values through this Python so packaged clients use
+# the same physical LocalAppData paths that install.py will receive.
+if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'ACH\app' }
+if (-not $Workspace) { $Workspace = Join-Path $env:LOCALAPPDATA 'ACH\workspace' }
+$pathJson = & $Python -c 'import json,sys; from pathlib import Path; print(json.dumps([str(Path(value).expanduser().resolve()) for value in sys.argv[1:3]]))' $InstallDir $Workspace
+if ($LASTEXITCODE -ne 0) { throw 'Installation path resolution failed. No installation was attempted.' }
+$resolvedPaths = $pathJson | Select-Object -Last 1 | ConvertFrom-Json
+$InstallDir = [string]$resolvedPaths[0]
+$Workspace = [string]$resolvedPaths[1]
+if (Test-Path -LiteralPath $Workspace) {
+    if (-not (Test-Path -LiteralPath $Workspace -PathType Container)) {
+        throw 'The staging workspace must be a directory.'
+    }
+    if (Get-ChildItem -LiteralPath $Workspace -Force | Select-Object -First 1) {
+        throw 'Choose an empty staging workspace. Existing board data and client settings are not replaced.'
+    }
+}
 
 function Invoke-CheckedPython {
     param([string[]]$Arguments)
