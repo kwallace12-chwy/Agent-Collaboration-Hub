@@ -145,10 +145,17 @@ class DesktopTests(unittest.TestCase):
         processes = [subprocess.Popen([sys.executable, str(script)], stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, text=True) for _ in range(2)]
         results = []
-        for process in processes:
-            output, error = process.communicate(timeout=15)
-            self.assertEqual(process.returncode, 0, error)
-            results.append(json.loads(output))
+        try:
+            # Reap both launchers before asserting, including when one failed.
+            outputs = [process.communicate(timeout=15) for process in processes]
+            for process, (output, error) in zip(processes, outputs):
+                self.assertEqual(process.returncode, 0, error)
+                results.append(json.loads(output))
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=5)
         self.assertEqual(results[0]["pid"], results[1]["pid"])
 
 

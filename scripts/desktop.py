@@ -22,6 +22,10 @@ import urllib.request
 import webbrowser
 
 CODE_DIR = Path(__file__).resolve().parents[1]
+if str(CODE_DIR) not in sys.path:
+    sys.path.insert(0, str(CODE_DIR))
+import file_lock
+
 DEFAULT_PORT = 8765
 
 
@@ -78,22 +82,12 @@ def launch_lock(workspace: Path, timeout: float = 15):
     state = workspace / "state"
     state.mkdir(parents=True, exist_ok=True)
     with (state / "desktop-launch.lock").open("a+b") as handle:
-        if os.name == "nt":
-            import msvcrt
-            handle.seek(0)
-            if not handle.read(1):
-                handle.write(b"0")
-                handle.flush()
-        else:
-            import fcntl
+        # Do not read the lock byte before acquiring it: Windows byte locks
+        # deny that read while a second launcher is still starting the board.
         deadline = time.monotonic() + timeout
         while True:
             try:
-                if os.name == "nt":
-                    handle.seek(0)
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-                else:
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                file_lock.flock(handle.fileno(), file_lock.LOCK_EX | file_lock.LOCK_NB)
                 break
             except (OSError, BlockingIOError):
                 if time.monotonic() >= deadline:
@@ -102,11 +96,7 @@ def launch_lock(workspace: Path, timeout: float = 15):
         try:
             yield
         finally:
-            if os.name == "nt":
-                handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            file_lock.flock(handle.fileno(), file_lock.LOCK_UN)
 
 
 def free_port(preferred: int) -> int:

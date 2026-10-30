@@ -95,7 +95,7 @@ ChatGPT web cannot reach this local board from a link. Remote access requires a 
 | --- | --- |
 | macOS | Local board, installer, and launcher exercised |
 | Linux | GitLab matrix configured for Python 3.10, 3.12, and 3.14; GitHub Actions also covers Linux and macOS |
-| Windows | Compatibility paths and shortcut creation included; **not verified on a Windows machine here** |
+| Windows | Native GitHub Actions matrix covers Python 3.10 and 3.14, launchers, and staging setup; actual desktop client connections require local verification |
 
 Python must remain installed. See [troubleshooting](docs/troubleshooting.md) for launch or connection issues.
 
