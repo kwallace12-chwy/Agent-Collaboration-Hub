@@ -22,6 +22,7 @@ jobs:
       PYTHONDONTWRITEBYTECODE: '1'
       COLLAB_ALERTS_AUTOSTART: '0'
       COLLAB_DISABLE_EXTERNAL_DELIVERY: '1'
+      COLLAB_ALLOW_CONSULTS: '0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

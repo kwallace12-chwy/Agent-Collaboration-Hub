@@ -10,11 +10,14 @@ Coordinates multi-perspective deliberations among:
 """
 
 import argparse
+from contextlib import contextmanager
 import datetime
+import file_lock as fcntl
 import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from app_paths import CODE_DIR, workspace_root
@@ -35,14 +38,52 @@ def load_store() -> dict:
     if not ADVISORY_STORE.exists():
         return {"sessions": []}
     try:
-        return json.loads(ADVISORY_STORE.read_text(encoding="utf-8"))
-    except Exception:
-        return {"sessions": []}
+        store = json.loads(ADVISORY_STORE.read_text(encoding="utf-8"))
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError(f"Cannot read advisory state; restore {ADVISORY_STORE} from a backup") from exc
+    if not isinstance(store, dict) or not isinstance(store.get("sessions"), list):
+        raise ValueError("Invalid advisory state; existing data has not been replaced")
+    ids = set()
+    for session in store["sessions"]:
+        if (not isinstance(session, dict) or type(session.get("id")) is not int
+                or session["id"] < 1 or session["id"] in ids
+                or not isinstance(session.get("responses", {}), dict)):
+            raise ValueError("Invalid advisory session; existing data has not been replaced")
+        ids.add(session["id"])
+    return store
+
+
+def atomic_write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def save_store(data: dict) -> None:
+    atomic_write(ADVISORY_STORE, json.dumps(data, indent=2) + "\n")
+
+
+@contextmanager
+def edit_store():
+    """Keep the entire read/change/save operation inside one process mutex."""
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    ADVISORY_STORE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    with (STATE_DIR / "advisory.lock").open("a+b") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            store = load_store()
+            yield store
+            save_store(store)
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def post_collab_message(sender: str, channel: str, msg: str) -> None:
@@ -60,19 +101,18 @@ def post_collab_message(sender: str, channel: str, msg: str) -> None:
 
 
 def cmd_request(topic: str, context: str, requested_by: str) -> None:
-    store = load_store()
-    session_id = len(store["sessions"]) + 1
-    session = {
-        "id": session_id,
-        "topic": topic,
-        "context": context,
-        "requested_by": requested_by,
-        "created_at": now_iso(),
-        "status": "open",
-        "responses": {},
-    }
-    store["sessions"].append(session)
-    save_store(store)
+    with edit_store() as store:
+        session_id = max((session["id"] for session in store["sessions"]), default=0) + 1
+        session = {
+            "id": session_id,
+            "topic": topic,
+            "context": context,
+            "requested_by": requested_by,
+            "created_at": now_iso(),
+            "status": "open",
+            "responses": {},
+        }
+        store["sessions"].append(session)
 
     prompt = (
         f"🏛️ **[ADVISORY REQUEST #{session_id}]**: **{topic}**\n\n"
@@ -84,7 +124,9 @@ def cmd_request(topic: str, context: str, requested_by: str) -> None:
         f"- `@claude`: Deep reasoning, security, correctness, edge cases\n"
         f"- `@codex`: Implementation practicality, velocity, testing burden\n"
         f"- `@argon-antigravity`: System orchestration, Chrome/multimodal integration, scalability\n\n"
-        f"Submit advice with `./advisory respond --id {session_id} --agent <id> --advice '...'` or reply in #advisory."
+        f"Record advice using advisory.py respond --id {session_id} with this workspace selected. "
+        f"Source: {CODE_DIR / 'advisory.py'}. Board replies are discussion; only recorded responses enter the briefing. "
+        "Review independently first, cite sources or tests, and identify unresolved disagreements."
     )
 
     post_collab_message(sender=requested_by, channel="advisory", msg=prompt)
@@ -93,37 +135,29 @@ def cmd_request(topic: str, context: str, requested_by: str) -> None:
 
 
 def cmd_respond(session_id: int, agent_id: str, advice: str) -> None:
-    store = load_store()
-    session = next((s for s in store["sessions"] if s["id"] == session_id), None)
-    if not session:
-        print(f"[ERROR] Session #{session_id} not found.", file=sys.stderr)
-        sys.exit(1)
-
-    session["responses"][agent_id] = {
-        "agent": agent_id,
-        "advice": advice,
-        "submitted_at": now_iso(),
-    }
-    save_store(store)
+    with edit_store() as store:
+        session = next((s for s in store["sessions"] if s["id"] == session_id), None)
+        if not session:
+            raise ValueError(f"Session #{session_id} not found")
+        session.setdefault("responses", {})[agent_id] = {
+            "agent": agent_id,
+            "advice": advice,
+            "submitted_at": now_iso(),
+        }
+        # A late response makes a previously compiled briefing stale.
+        session["status"] = "open"
+        session.pop("briefing_file", None)
 
     msg = f"🏛️ **[ADVISORY RESPONSE #{session_id}] from `{agent_id}`**:\n\n{advice}"
     post_collab_message(sender=agent_id, channel="advisory", msg=msg)
     print(f"[OK] Recorded response from '{agent_id}' for Session #{session_id}.")
 
 
-def cmd_synthesize(session_id: int) -> None:
-    store = load_store()
-    session = next((s for s in store["sessions"] if s["id"] == session_id), None)
-    if not session:
-        print(f"[ERROR] Session #{session_id} not found.", file=sys.stderr)
-        sys.exit(1)
-
-    briefing_path = ADVISORY_DIR / f"ADVISORY-{session_id}.md"
-
+def render_briefing(session: dict) -> str:
     md_lines = [
-        f"# Advisory Panel Briefing #{session_id}: {session['topic']}",
+        f"# Advisory Panel Briefing #{session['id']}: {session['topic']}",
         "",
-        f"> **Convened By**: `{session['requested_by']}` | **Date**: `{session['created_at']}` | **Status**: Closed/Synthesized",
+        f"> **Convened By**: `{session['requested_by']}` | **Date**: `{session['created_at']}` | **Status**: Compiled; decision pending",
         "",
         "## 1. Problem Statement & Context",
         session["context"],
@@ -147,19 +181,28 @@ def cmd_synthesize(session_id: int) -> None:
         [
             "---",
             "",
-            "## 3. Executive Consensus & Recommended Action Plan",
+            "## 3. Evidence, disagreements, and decision",
             "",
-            "- **Consensus Highlights**: Reviewing all perspectives above.",
-            "- **Next Steps**: Awaiting Human Director review and sign-off.",
+            "- **Verified findings**: Pending source or test verification.",
+            "- **Disagreements and missing evidence**: Pending reconciliation.",
+            "- **Decision and next steps**: Pending human review.",
+            "- **Stop rule**: Finish when acceptance checks pass; escalate unresolved material findings at the agreed review limit.",
             "",
         ]
     )
 
-    briefing_content = "\n".join(md_lines)
-    briefing_path.write_text(briefing_content, encoding="utf-8")
-    session["status"] = "synthesized"
-    session["briefing_file"] = str(briefing_path)
-    save_store(store)
+    return "\n".join(md_lines)
+
+
+def cmd_synthesize(session_id: int) -> None:
+    with edit_store() as store:
+        session = next((s for s in store["sessions"] if s["id"] == session_id), None)
+        if not session:
+            raise ValueError(f"Session #{session_id} not found")
+        briefing_path = ADVISORY_DIR / f"ADVISORY-{session_id}.md"
+        atomic_write(briefing_path, render_briefing(session))
+        session["status"] = "synthesized"
+        session["briefing_file"] = str(briefing_path)
 
     notify_msg = (
         f"🏛️ **[ADVISORY BRIEFING READY]**: Session #{session_id} has been synthesized!\n"
@@ -214,4 +257,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (OSError, ValueError) as exc:
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        raise SystemExit(1)

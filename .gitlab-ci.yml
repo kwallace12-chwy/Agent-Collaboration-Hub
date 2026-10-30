@@ -11,6 +11,7 @@ variables:
   PYTHONDONTWRITEBYTECODE: '1'
   COLLAB_ALERTS_AUTOSTART: '0'
   COLLAB_DISABLE_EXTERNAL_DELIVERY: '1'
+  COLLAB_ALLOW_CONSULTS: '0'
 
 unit-and-integration:
   stage: test

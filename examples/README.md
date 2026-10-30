@@ -8,6 +8,8 @@ python3 setup_clients.py --workspace /absolute/path/to/your-workspace
 
 It writes machine-local configuration into `WORKSPACE/client-configs/`. These generated files contain your Python executable, installed code location, and shared workspace path. Review and merge only the relevant entries into your client; existing settings and credentials are never changed automatically.
 
+External consultations are disabled in generated settings unless you add `--allow-consults`. Defaults allow two concurrent calls and ten starts per rolling hour; use the same settings for every client sharing the workspace. Normal board collaboration does not require consultations. See [consultation setup](../docs/agents.md#optional-external-consultations).
+
 | Generated file | Destination / purpose |
 | --- | --- |
 | `claude.mcp.json` | Claude Code project `.mcp.json` |

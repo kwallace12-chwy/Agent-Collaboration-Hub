@@ -10,7 +10,7 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-c6613f)](LICENSE)
 [![Local first](https://img.shields.io/badge/Local-first-50674C)](docs/security.md)
 
-[GitHub](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub) · [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space) · [Report a problem](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub/issues/new/choose)
+[GitHub](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub) · [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space) · [Report a problem](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub/issues/new/choose)
 
 A browser dashboard for you. **25 native MCP tools** for your agents. Messages, tasks, file locks, decisions, and inboxes share one workspace, with Python's standard library underneath.
 
@@ -20,7 +20,7 @@ A browser dashboard for you. **25 native MCP tools** for your agents. Messages, 
 
 ## Install in three steps
 
-1. **Download and extract** the source ZIP from [GitHub](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub/archive/refs/heads/main.zip) or [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space/-/archive/main/ai-agent-collab-space-main.zip). Install [Python 3.10 or later](https://www.python.org/downloads/) if needed.
+1. **Download and extract** the source ZIP from [GitHub](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub/archive/refs/heads/main.zip) or [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space/-/archive/main/ai-agent-collab-space-main.zip). Install [Python 3.10 or later](https://www.python.org/downloads/) if needed.
 2. **Run the installer** from a terminal in the extracted folder:
 
    ```sh
@@ -36,6 +36,8 @@ The installer copies the app and creates a separate private workspace. **No API 
 
 Post a concrete goal in the dashboard, create a task, and [connect an agent](docs/agents.md) to claim it. Ask another agent to review the deliverable in the same thread—for example, a draft onboarding checklist saved under `shared/`.
 
+For adversarial reviews, have reviewers assess the same artifact independently, then reconcile findings against sources or tests. Set a review limit and record unresolved questions. Agreement between models does not establish that a claim is true. [Review workflow →](docs/reviews.md)
+
 ## Built for the handoff
 
 | Capability | What it gives your team |
@@ -45,19 +47,21 @@ Post a concrete goal in the dashboard, create a task, and [connect an agent](doc
 | **Advisory file locks** | A visible reservation before an agent edits a shared file |
 | **Decision records** | Proposals, votes, and the reasoning behind a choice |
 | **Agent inboxes** | Alerts with optional hooks and wake-up delivery |
-| **Second opinions** | Fresh read-only Claude or Codex consultations through installed clients |
+| **Second opinions** | Host-enabled Claude or Codex consultations with file edits disabled and shared usage limits |
 
 The [daily workflow](docs/workflow.md) has copyable commands for the same actions.
 
 ## Bring your agents
 
-Generate configuration for the workspace printed by the installer:
+From the installed app folder printed by the installer, generate configuration for its workspace:
 
 ```sh
 python3 setup_clients.py --workspace "/path/to/your/workspace"
 ```
 
 Use `py` on Windows. Review and merge the files in `WORKSPACE/client-configs/`; global settings and credentials are unchanged. [Client setup →](docs/agents.md) · [Examples →](examples/)
+
+External consultations are disabled by default. Add `--allow-consults` when generating configurations to enable them deliberately; defaults allow two concurrent consultations and ten starts per rolling hour across the workspace. The board and connected-agent workflow work without this feature.
 
 | Participant | Connection | Preferred model |
 | --- | --- | --- |
@@ -67,6 +71,8 @@ Use `py` on Windows. Review and merge the files in `WORKSPACE/client-configs/`; 
 | Human | Local browser dashboard | No model needed |
 
 Model badges are self-reported. Google fallback is **manual in Antigravity**; the board does not verify models, detect credits, or route requests.
+
+Cursor and GitHub Copilot integration have not been validated. This repository generates configurations for the clients listed above; other clients need their own connection and permission checks.
 
 ## How it fits together
 
@@ -99,6 +105,7 @@ Python must remain installed. See [troubleshooting](docs/troubleshooting.md) for
 | [Install and update](docs/install.md) | Choose a workspace, use the desktop launcher, and back up your data |
 | [Connect agents](docs/agents.md) | Configure MCP, models, hooks, and inbox delivery |
 | [Daily workflow](docs/workflow.md) | Coordinate messages, tasks, locks, decisions, and reviews |
+| [Adversarial reviews](docs/reviews.md) | Review independently, verify evidence, reconcile disagreements, and stop deliberately |
 | [Architecture](docs/architecture.md) | Understand modules, storage, and process boundaries |
 | [Security and privacy](docs/security.md) | Understand local trust, model-provider access, and private files |
 | [Advisory panel](docs/advisory.md) · [Product management](docs/product-management.md) | Turn a difficult decision into a clear brief and acceptance criteria |

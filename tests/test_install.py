@@ -122,6 +122,31 @@ class InstallTests(unittest.TestCase):
         self.assertTrue(Path(result["launcher"]).exists())
         self.assertFalse(self.desktop.exists())
 
+    def test_real_install_generates_stable_client_paths_and_workspace_consult_context(self):
+        installer.install(self.app, self.data, None, source=ROOT)
+        environment = {**os.environ, "COLLAB_WORKSPACE": str(self.data), "COLLAB_ALLOW_CONSULTS": "0",
+                       "COLLAB_DISABLE_EXTERNAL_DELIVERY": "1", "COLLAB_ALERTS_AUTOSTART": "0"}
+        generated = subprocess.run([sys.executable, str(self.app / "setup_clients.py"),
+                                    "--workspace", str(self.data)], cwd=self.data, env=environment,
+                                   text=True, capture_output=True, timeout=20)
+        self.assertEqual(generated.returncode, 0, generated.stderr)
+        client = json.loads((self.data / "client-configs" / "claude.mcp.json").read_text())
+        self.assertEqual(client["mcpServers"]["agent-collab"]["args"], [str(self.app / "mcp_server.py")])
+        self.assertEqual(client["mcpServers"]["agent-collab"]["env"]["COLLAB_ALLOW_CONSULTS"], "0")
+        context = subprocess.run([sys.executable, "-c", "import sys;sys.path.insert(0,sys.argv[1]);"
+                                  "import ask;print(ask.framing('synthetic-reviewer'))", str(self.app)],
+                                 cwd=self.data, env=environment, text=True, capture_output=True, timeout=20)
+        self.assertEqual(context.returncode, 0, context.stderr)
+        self.assertIn(str(self.app / "AGENTS.md"), context.stdout)
+        self.assertIn(str(self.data / "BOARD.md"), context.stdout)
+        self.assertIn("Authority and privacy", context.stdout)
+        self.assertNotIn("./collab read", context.stdout)
+        disabled = subprocess.run([sys.executable, str(self.app / "ask.py"), "codex", "Synthetic prompt"],
+                                  cwd=self.data, env=environment, text=True, capture_output=True, timeout=20)
+        self.assertEqual(disabled.returncode, 1)
+        self.assertIn("Consultations are disabled", disabled.stderr)
+        self.assertFalse((self.data / "state" / "asks").exists())
+
     def test_mac_app_contains_executable_and_valid_plist(self):
         result = self.install(platform="darwin")
         bundle = Path(result["shortcut"]["path"])

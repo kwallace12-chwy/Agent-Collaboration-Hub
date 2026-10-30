@@ -108,10 +108,36 @@ class ClientTests(unittest.TestCase):
                 self.assertEqual(client["command"], sys.executable)
                 self.assertTrue(Path(client["command"]).is_file())
                 self.assertEqual(client["env"]["COLLAB_WORKSPACE"], str(self.workspace.resolve()))
+                self.assertEqual(client["env"]["COLLAB_ALLOW_CONSULTS"], "0")
+                self.assertEqual(client["env"]["COLLAB_MAX_CONCURRENT_CONSULTS"], "2")
+                self.assertEqual(client["env"]["COLLAB_MAX_CONSULTS_PER_HOUR"], "10")
                 self.assertEqual(len(client["args"]), 1)
                 server_path = Path(client["args"][0])
                 self.assertTrue(server_path.is_file())
                 self.assertEqual(server_path, ROOT / "mcp_server.py")
+
+    def test_explicit_consult_opt_in_and_limits_are_written_for_every_client(self):
+        self.setup_clients.generate(self.workspace, self.output, allow_consults=True,
+                                    max_concurrent_consults=1, max_consults_per_hour=3)
+        environments = [self.read_json(name)["mcpServers"]["agent-collab"]["env"]
+                        for name in ("claude.mcp.json", "antigravity.mcp.json")]
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.optionxform = str
+        parser.read(self.output / "codex.toml", encoding="utf-8")
+        environments.append({key: json.loads(value)
+                             for key, value in parser["mcp_servers.agent-collab.env"].items()})
+        for environment in environments:
+            self.assertEqual(environment["COLLAB_ALLOW_CONSULTS"], "1")
+            self.assertEqual(environment["COLLAB_MAX_CONCURRENT_CONSULTS"], "1")
+            self.assertEqual(environment["COLLAB_MAX_CONSULTS_PER_HOUR"], "3")
+        self.assert_global_settings_unchanged()
+
+    def test_invalid_consult_limits_do_not_write_configuration(self):
+        for settings in ({"max_concurrent_consults": 0}, {"max_consults_per_hour": -1}):
+            with self.assertRaisesRegex(ValueError, "positive"):
+                self.setup_clients.generate(self.workspace, self.output, **settings)
+        self.assertFalse(self.output.exists())
+        self.assert_global_settings_unchanged()
 
     def test_claude_uses_exact_opus_model_and_high_effort(self):
         self.generate()

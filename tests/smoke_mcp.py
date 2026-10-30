@@ -6,7 +6,7 @@ Optional: --cases cases.json, a list of {"name": ..., "arguments": ...} calls.
 All sibling .py modules are copied, but the real database/board are not copied.
 The tested adapter must resolve its hub from its own directory, not a hardcoded
 production path. Inspect an adapter before executing this script against it.
-External notifications and agent wake-ups are always disabled for the child.
+External notifications, agent wake-ups, and paid consultations are disabled for the child.
 """
 
 import argparse
@@ -28,7 +28,7 @@ class Client:
             stdout=subprocess.PIPE, stderr=self.stderr, bufsize=0,
             env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONUTF8": "1",
                  "COLLAB_WORKSPACE": str(cwd), "COLLAB_ALERTS_AUTOSTART": "0",
-                 "COLLAB_DISABLE_EXTERNAL_DELIVERY": "1"},
+                 "COLLAB_DISABLE_EXTERNAL_DELIVERY": "1", "COLLAB_ALLOW_CONSULTS": "0"},
         )
         self.buffer = bytearray()
         self.selector = selectors.DefaultSelector()

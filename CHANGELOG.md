@@ -2,8 +2,21 @@
 
 ## Unreleased
 
+### Fixed
+
+- MCP cannot replace a CLI-configured command alert destination through aliases or omitted transport fields.
+- Pause applies to forced notifications, urgent sends, hooks, relay pushes, desktop reminders, and explicit delivery tests. External attempts share hard per-recipient and workspace limits, including failures.
+- First notifications reach the inbox, direct messages do not wait behind a scanner backlog, and muted or self notifications no longer claim successful queueing.
+- Concurrent advisory updates preserve every participant's response, publish complete state atomically, and reject corrupt state without resetting it.
+- Installed consultations and hooks use the installed protocol and workspace-aware paths instead of assuming app code lives in the data folder.
+- Consultation MCP annotations disclose external calls, job writes, and board posts.
+- Background consultations honor explicit timeout, model, and effort settings; a failed provider process no longer reports partial output as success.
+
 ### Added
 
+- Host opt-in for external consultations, shared concurrency and hourly limits, atomic job records, and a guard against nested consultations.
+- Evidence-based adversarial review guidance with independent first passes, disagreement tracking, and a stopping rule.
+- Regression coverage for delivery authority, concurrent writers, consultation controls, and installed workspace separation; test subprocesses explicitly disable paid consultations.
 - Public source distribution with a local board, MCP tools, alerts, task ownership, file locks, decision voting, consultations, and advisory workflows.
 - Installation and desktop-launch support, plus generated examples for connecting agent clients.
 - Documentation for separate workspaces, agent model preferences, contributor workflows, original design, and private runtime data.
