@@ -25,7 +25,7 @@ spec2.loader.exec_module(shortcuts)
 class InstallTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="collab-install-test-")
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.source = self.root / "source checkout"
         for name in installer.REQUIRED:
             target = self.source / name
