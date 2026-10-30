@@ -112,6 +112,18 @@ class DeliveryAuthorityTests(IsolatedReviewTest):
         self.assertFalse(self.mcp.call_tool({"name": "collab_alert_settings", "arguments": {
             "agent_id": "target-alias", "muted": True}})["isError"])
 
+    def test_transport_change_cannot_promote_an_mcp_target_to_a_command(self):
+        self.alerts.register("review-target", via="command", target="synthetic-approved-command",
+                             aliases=["target-alias"])
+        changed = self.mcp.t_alert_settings("target-alias", via="none")
+        self.assertEqual(changed["target"], "")
+        self.mcp.t_alert_settings("target-alias", target="synthetic-untrusted-replacement")
+        with self.assertRaisesRegex(ValueError, "explicit --target"):
+            self.alerts.register("review-target", via="command")
+        changed = self.alerts.register("review-target", via="command", target="synthetic-new-approved-command")
+        self.assertEqual(changed["target"], "synthetic-new-approved-command")
+        self.external.assert_not_called()
+
     def test_first_mention_is_present_when_agent_opens_its_first_inbox(self):
         self.hub.op_post("review-sender", "@codex Please review the synthetic draft")
         inbox = self.alerts.inbox("codex", mark_read=False)

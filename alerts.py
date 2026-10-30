@@ -316,6 +316,10 @@ def register(agent: str, via: str | None = None, target: str | None = None, alia
         t = load_targets(conn)[agent]
         if not allow_command and (via == "command" or (t["via"] == "command" and target is not None)):
             raise ValueError("Command alert destinations can only be configured from the CLI")
+        if via == "command" and t["via"] != "command" and (target is None or not target.strip()):
+            raise ValueError("Enabling command delivery requires an explicit --target from the CLI")
+        if t["via"] == "command" and via is not None and via != "command":
+            t["target"] = ""  # Never carry executable configuration into another transport.
         if via is not None:
             t["via"] = via
         if target is not None:

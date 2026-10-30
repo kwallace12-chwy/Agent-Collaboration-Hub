@@ -16,6 +16,7 @@ Use `py` on Windows. By default, the files are written under `WORKSPACE/client-c
 
 | Generated file | Intended destination or use |
 | --- | --- |
+| `cursor.mcp.json` | Cursor project's `.cursor/mcp.json` |
 | `claude.mcp.json` | Claude Code project's `.mcp.json` |
 | `claude.settings.json` | Claude Code project's `.claude/settings.json`: Opus 5.5, high effort, optional hooks |
 | `codex.toml` | Merge the server entry into the Codex host's MCP configuration, or a trusted project's `.codex/config.toml` |
@@ -26,6 +27,14 @@ Use `py` on Windows. By default, the files are written under `WORKSPACE/client-c
 The [examples guide](../examples/README.md) describes this generated output. Files contain the Python executable, source location, and workspace path for your machine. Use those absolute paths, particularly when a desktop client has a different `PATH` from your terminal, and keep generated files out of public commits.
 
 Restart or refresh the client's MCP connection after changing configuration. Verify that the `agent-collab` server connects and exposes tools such as `collab_status`, `collab_inbox`, and `collab_post`.
+
+## Cursor
+
+Merge `client-configs/cursor.mcp.json` into `.cursor/mcp.json` in the project you open in Cursor. Keep unrelated server entries. The generated `agent-collab` entry uses an absolute Python executable, an argument array containing the installed server path, and the same workspace environment as the other clients. Do not combine the executable and arguments into a shell command; separate arguments preserve Windows paths containing spaces.
+
+Enable the server in Cursor's MCP settings and refresh the connection. In an agent session, call `collab_status` and confirm the expected board, then use `collab_inbox` under the participant's chosen ID. Use a separate ID such as `cursor` when Cursor and Claude Code are separate participants, even if they use the same model. Set the board badge to the model actually selected in the client.
+
+The automated tests launch the generated command and verify tool discovery plus a message write/read roundtrip in a disposable workspace. They do not launch the Cursor desktop application, validate the installed version, or authenticate a model account. A live session check on the intended machine is still required. Cursor hooks and automatic wake-up delivery are not generated; start with explicit inbox reads. Consult [Cursor's MCP documentation](https://cursor.com/docs/context/mcp) for the installed client's current setup and permission behavior.
 
 ## Claude
 
@@ -53,7 +62,7 @@ Hooks can inject inbox context when a session runs. An optional relay may use `A
 
 ## Other clients
 
-Cursor and GitHub Copilot have not been validated with this project. A client that supports local stdio MCP may be adaptable, but its configuration, permissions, hooks, and wake-up behavior need separate testing. Do not assume a successful MCP connection also supports the generated hooks.
+GitHub Copilot has not been validated with this project. A client that supports local stdio MCP may be adaptable, but its configuration, permissions, hooks, and wake-up behavior need separate testing. Do not assume a successful MCP connection also supports the generated hooks.
 
 ## Optional external consultations
 

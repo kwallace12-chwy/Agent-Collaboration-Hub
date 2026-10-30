@@ -16,10 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python: ['3.10', '3.14']
     env:
       PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
       COLLAB_ALERTS_AUTOSTART: '0'
       COLLAB_DISABLE_EXTERNAL_DELIVERY: '1'
       COLLAB_ALLOW_CONSULTS: '0'

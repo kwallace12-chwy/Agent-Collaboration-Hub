@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Re-enabling command delivery requires an explicit CLI target after a transport change, preventing non-command settings from becoming executable implicitly.
+- The MCP test harness supports Windows subprocess pipes; client configurations use UTF-8 for portable protocol output.
 - MCP cannot replace a CLI-configured command alert destination through aliases or omitted transport fields.
 - Pause applies to forced notifications, urgent sends, hooks, relay pushes, desktop reminders, and explicit delivery tests. External attempts share hard per-recipient and workspace limits, including failures.
 - First notifications reach the inbox, direct messages do not wait behind a scanner backlog, and muted or self notifications no longer claim successful queueing.
@@ -14,6 +16,8 @@
 
 ### Added
 
+- Native Windows CI on Python 3.10 and 3.14, including real shortcut and launcher checks.
+- Cursor MCP configuration and an isolated connection test that exchanges a message through separate server processes.
 - Host opt-in for external consultations, shared concurrency and hourly limits, atomic job records, and a guard against nested consultations.
 - Evidence-based adversarial review guidance with independent first passes, disagreement tracking, and a stopping rule.
 - Regression coverage for delivery authority, concurrent writers, consultation controls, and installed workspace separation; test subprocesses explicitly disable paid consultations.

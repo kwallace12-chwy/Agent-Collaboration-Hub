@@ -25,12 +25,13 @@ def generate(workspace: Path, output: Path, python: str = sys.executable, *,
     workspace = workspace.expanduser().resolve()
     output = output.expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
-    environment = {"COLLAB_WORKSPACE": str(workspace),
+    environment = {"COLLAB_WORKSPACE": str(workspace), "PYTHONUTF8": "1",
                    "COLLAB_ALLOW_CONSULTS": "1" if allow_consults else "0",
                    "COLLAB_MAX_CONCURRENT_CONSULTS": str(max_concurrent_consults),
                    "COLLAB_MAX_CONSULTS_PER_HOUR": str(max_consults_per_hour)}
     server = {"command": python, "args": [str(CODE_DIR / "mcp_server.py")], "env": environment}
     configs = {
+        "cursor.mcp.json": {"mcpServers": {"agent-collab": server}},
         "claude.mcp.json": {"mcpServers": {"agent-collab": {"type": "stdio", **server}}},
         "antigravity.mcp.json": {"mcpServers": {"agent-collab": server}},
     }

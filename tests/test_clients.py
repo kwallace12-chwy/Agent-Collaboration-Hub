@@ -47,6 +47,7 @@ class ClientTests(unittest.TestCase):
         self.home = self.root / "unrelated home"
         self.home.mkdir()
         self.global_settings = {
+            self.home / ".cursor" / "mcp.json": '{"keep": "cursor"}\n',
             self.home / ".claude" / "settings.json": '{"keep": "claude"}\n',
             self.home / ".codex" / "config.toml": 'keep = "codex"\n',
             self.home / ".gemini" / "antigravity" / "mcp_config.json": '{"keep": "google"}\n',
@@ -73,9 +74,10 @@ class ClientTests(unittest.TestCase):
         for path, expected in self.global_settings.items():
             self.assertEqual(path.read_text(encoding="utf-8"), expected)
 
-    def test_generates_six_local_files_without_touching_global_settings(self):
+    def test_generates_seven_local_files_without_touching_global_settings(self):
         written = self.generate()
         expected = {
+            "cursor.mcp.json",
             "claude.mcp.json", "antigravity.mcp.json", "claude.settings.json",
             "codex.hooks.json", "antigravity.hooks.json", "codex.toml",
         }
@@ -88,7 +90,7 @@ class ClientTests(unittest.TestCase):
     def test_every_mcp_client_targets_the_same_workspace_and_existing_server(self):
         self.generate()
         clients = []
-        for name in ("claude.mcp.json", "antigravity.mcp.json"):
+        for name in ("cursor.mcp.json", "claude.mcp.json", "antigravity.mcp.json"):
             clients.append(self.read_json(name)["mcpServers"]["agent-collab"])
         # The generated TOML contains JSON-compatible string and array literals.
         # ConfigParser keeps these sections readable on supported Python 3.9/3.10,
@@ -108,6 +110,7 @@ class ClientTests(unittest.TestCase):
                 self.assertEqual(client["command"], sys.executable)
                 self.assertTrue(Path(client["command"]).is_file())
                 self.assertEqual(client["env"]["COLLAB_WORKSPACE"], str(self.workspace.resolve()))
+                self.assertEqual(client["env"]["PYTHONUTF8"], "1")
                 self.assertEqual(client["env"]["COLLAB_ALLOW_CONSULTS"], "0")
                 self.assertEqual(client["env"]["COLLAB_MAX_CONCURRENT_CONSULTS"], "2")
                 self.assertEqual(client["env"]["COLLAB_MAX_CONSULTS_PER_HOUR"], "10")
@@ -120,7 +123,7 @@ class ClientTests(unittest.TestCase):
         self.setup_clients.generate(self.workspace, self.output, allow_consults=True,
                                     max_concurrent_consults=1, max_consults_per_hour=3)
         environments = [self.read_json(name)["mcpServers"]["agent-collab"]["env"]
-                        for name in ("claude.mcp.json", "antigravity.mcp.json")]
+                        for name in ("cursor.mcp.json", "claude.mcp.json", "antigravity.mcp.json")]
         parser = configparser.ConfigParser(interpolation=None)
         parser.optionxform = str
         parser.read(self.output / "codex.toml", encoding="utf-8")
