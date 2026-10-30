@@ -17,6 +17,7 @@
 ### Added
 
 - Native Windows CI on Python 3.10 and 3.14, including real shortcut and launcher checks.
+- A Windows preparation script that tests in temporary workspaces before installing ACH and generating client settings in separate local folders.
 - Cursor MCP configuration and an isolated connection test that exchanges a message through separate server processes.
 - Host opt-in for external consultations, shared concurrency and hourly limits, atomic job records, and a guard against nested consultations.
 - Evidence-based adversarial review guidance with independent first passes, disagreement tracking, and a stopping rule.

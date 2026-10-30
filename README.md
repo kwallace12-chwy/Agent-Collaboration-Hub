@@ -104,6 +104,7 @@ Python must remain installed. See [troubleshooting](docs/troubleshooting.md) for
 | Guide | Use it to… |
 | --- | --- |
 | [Install and update](docs/install.md) | Choose a workspace, use the desktop launcher, and back up your data |
+| [Prepare ACH on Windows](docs/windows.md) | Test and stage ACH before replacing an existing collaboration folder |
 | [Connect agents](docs/agents.md) | Configure MCP, models, hooks, and inbox delivery |
 | [Daily workflow](docs/workflow.md) | Coordinate messages, tasks, locks, decisions, and reviews |
 | [Adversarial reviews](docs/reviews.md) | Review independently, verify evidence, reconcile disagreements, and stop deliberately |

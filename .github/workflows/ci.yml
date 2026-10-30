@@ -37,3 +37,7 @@ jobs:
         run: python tests/smoke_mcp.py mcp_server.py --cases tests/v2_cases.json
       - name: Installer preview
         run: python install.py --dry-run --no-shortcut
+      - name: Prepare a Windows staging installation
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: '& .\scripts\prepare_windows.ps1 -Python (Get-Command python).Source -InstallDir "$env:RUNNER_TEMP\ach staging app" -Workspace "$env:RUNNER_TEMP\ach staging workspace"'
