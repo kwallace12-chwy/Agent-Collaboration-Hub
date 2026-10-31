@@ -285,5 +285,14 @@
       "prompt": "do not launch"
     },
     "expect_error": true
+  },
+  {
+    "name": "collab_ask",
+    "arguments": {
+      "requester": "audit-a",
+      "agent": "codex",
+      "prompt": "Synthetic request: host opt-in is disabled"
+    },
+    "expect_error": true
   }
 ]

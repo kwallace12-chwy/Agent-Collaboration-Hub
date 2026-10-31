@@ -6,18 +6,19 @@ Optional: --cases cases.json, a list of {"name": ..., "arguments": ...} calls.
 All sibling .py modules are copied, but the real database/board are not copied.
 The tested adapter must resolve its hub from its own directory, not a hardcoded
 production path. Inspect an adapter before executing this script against it.
-External notifications and agent wake-ups are always disabled for the child.
+External notifications, agent wake-ups, and paid consultations are disabled for the child.
 """
 
 import argparse
 import json
 import os
 from pathlib import Path
-import selectors
+import queue
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 
 
 class Client:
@@ -28,12 +29,24 @@ class Client:
             stdout=subprocess.PIPE, stderr=self.stderr, bufsize=0,
             env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONUTF8": "1",
                  "COLLAB_WORKSPACE": str(cwd), "COLLAB_ALERTS_AUTOSTART": "0",
-                 "COLLAB_DISABLE_EXTERNAL_DELIVERY": "1"},
+                 "COLLAB_DISABLE_EXTERNAL_DELIVERY": "1", "COLLAB_ALLOW_CONSULTS": "0"},
         )
-        self.buffer = bytearray()
-        self.selector = selectors.DefaultSelector()
-        self.selector.register(self.proc.stdout, selectors.EVENT_READ)
+        # Windows selectors support sockets, not subprocess pipes. A reader
+        # thread preserves the response timeout on every supported platform.
+        self.lines = queue.Queue()
+        self.reader = threading.Thread(target=self._read_lines, daemon=True)
+        self.reader.start()
         self.next_id = 1
+
+    def _read_lines(self):
+        try:
+            while True:
+                line = self.proc.stdout.readline()
+                if not line:
+                    break
+                self.lines.put(line)
+        finally:
+            self.lines.put(None)
 
     def send(self, obj):
         self.raw(json.dumps(obj, ensure_ascii=False))
@@ -43,18 +56,12 @@ class Client:
         self.proc.stdin.flush()
 
     def receive(self):
-        import time
-        deadline = time.monotonic() + 10
-        while b"\n" not in self.buffer:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0 or not self.selector.select(remaining):
-                raise AssertionError("Timed out waiting for JSON-RPC response")
-            chunk = os.read(self.proc.stdout.fileno(), 65536)
-            if not chunk:
-                raise AssertionError("Server stdout closed before a response")
-            self.buffer.extend(chunk)
-        line, _, rest = self.buffer.partition(b"\n")
-        self.buffer = bytearray(rest)
+        try:
+            line = self.lines.get(timeout=10)
+        except queue.Empty as exc:
+            raise AssertionError("Timed out waiting for JSON-RPC response") from exc
+        if line is None:
+            raise AssertionError("Server stdout closed before a response")
         try:
             result = json.loads(line.decode("utf-8"))
         except (ValueError, UnicodeError) as exc:
@@ -86,7 +93,7 @@ class Client:
             except subprocess.TimeoutExpired:
                 self.proc.kill()
                 self.proc.wait(timeout=3)
-        self.selector.close()
+        self.reader.join(timeout=3)
         self.proc.stdout.close()
         self.stderr.seek(0)
         logs = self.stderr.read()

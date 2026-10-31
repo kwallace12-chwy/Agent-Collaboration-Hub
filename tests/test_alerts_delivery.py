@@ -117,15 +117,16 @@ class AlertDeliveryTests(unittest.TestCase):
             "import json,os,pathlib\n"
             "pathlib.Path('child-env.json').write_text(json.dumps({"
             "key:os.environ.get(key) for key in "
-            "('COLLAB_DISABLE_EXTERNAL_DELIVERY','COLLAB_ALERTS_AUTOSTART','COLLAB_WORKSPACE')}))\n",
+            "('COLLAB_DISABLE_EXTERNAL_DELIVERY','COLLAB_ALERTS_AUTOSTART','COLLAB_WORKSPACE','COLLAB_ALLOW_CONSULTS')}))\n",
             encoding="utf-8",
         )
-        with patch.dict(os.environ, {"COLLAB_DISABLE_EXTERNAL_DELIVERY": "0"}):
+        with patch.dict(os.environ, {"COLLAB_DISABLE_EXTERNAL_DELIVERY": "0", "COLLAB_ALLOW_CONSULTS": "1"}):
             client = smoke.Client(server, self.workspace)
             self.assertEqual(client.close(), "")
         environment = json.loads((self.workspace / "child-env.json").read_text())
         self.assertEqual(environment["COLLAB_DISABLE_EXTERNAL_DELIVERY"], "1")
         self.assertEqual(environment["COLLAB_ALERTS_AUTOSTART"], "0")
+        self.assertEqual(environment["COLLAB_ALLOW_CONSULTS"], "0")
         self.assertEqual(environment["COLLAB_WORKSPACE"], str(self.workspace))
 
 

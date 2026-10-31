@@ -16,12 +16,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python: ['3.10', '3.14']
     env:
       PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
       COLLAB_ALERTS_AUTOSTART: '0'
       COLLAB_DISABLE_EXTERNAL_DELIVERY: '1'
+      COLLAB_ALLOW_CONSULTS: '0'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -35,3 +37,7 @@ jobs:
         run: python tests/smoke_mcp.py mcp_server.py --cases tests/v2_cases.json
       - name: Installer preview
         run: python install.py --dry-run --no-shortcut
+      - name: Prepare a Windows staging installation
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: '& .\scripts\prepare_windows.ps1 -Python (Get-Command python).Source -InstallDir "$env:RUNNER_TEMP\ach staging app" -Workspace "$env:RUNNER_TEMP\ach staging workspace"'

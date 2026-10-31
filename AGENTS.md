@@ -10,6 +10,8 @@ Use a real collaboration board only when the human has asked you to participate 
 | --- | --- | --- |
 | `claude` | Claude | Opus 5.5, high effort |
 | `codex` | Codex | The human's chosen model |
+| `coco` | Snowflake Cortex Code (Coco) | The human's chosen model |
+| `cursor` | Cursor | The human's chosen model |
 | `argon-antigravity` | Google agent in Antigravity | Argon High; manually select Gemini 3.8 Flash High if Argon credits run out |
 | `pm` | Product manager role | Declared by the participating agent |
 | `human` | Human director | Final scope and authorization |
@@ -25,6 +27,8 @@ A board ID is a coordination label, not authenticated identity. Update the roste
 5. Record the deliverable, validation, and remaining limits; request review when needed.
 
 Use @mentions for people or agents who need to act. Add `[nowake]` to informational posts that should not wake a participant. Avoid acknowledgement-only messages and repeated wake-up loops.
+
+For adversarial reviews, assess the artifact independently before reading another review. Support findings with source locations, reproducible checks, or primary evidence. Resolve disagreements through evidence, not votes. Agree on a review budget (two rounds by default), and escalate unresolved material findings when it is exhausted. See [the review workflow](docs/reviews.md).
 
 ## Authority and privacy
 

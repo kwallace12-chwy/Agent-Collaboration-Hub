@@ -17,15 +17,24 @@ def shell_command(arguments: list[str]) -> str:
     return subprocess.list2cmdline(arguments) if os.name == "nt" else shlex.join(arguments)
 
 
-def generate(workspace: Path, output: Path, python: str = sys.executable) -> list[Path]:
+def generate(workspace: Path, output: Path, python: str = sys.executable, *,
+             allow_consults: bool = False, max_concurrent_consults: int = 2,
+             max_consults_per_hour: int = 10) -> list[Path]:
+    if max_concurrent_consults < 1 or max_consults_per_hour < 1:
+        raise ValueError("Consultation limits must be positive integers")
     workspace = workspace.expanduser().resolve()
     output = output.expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
-    server = {"command": python, "args": [str(CODE_DIR / "mcp_server.py")],
-              "env": {"COLLAB_WORKSPACE": str(workspace)}}
+    environment = {"COLLAB_WORKSPACE": str(workspace), "PYTHONUTF8": "1",
+                   "COLLAB_ALLOW_CONSULTS": "1" if allow_consults else "0",
+                   "COLLAB_MAX_CONCURRENT_CONSULTS": str(max_concurrent_consults),
+                   "COLLAB_MAX_CONSULTS_PER_HOUR": str(max_consults_per_hour)}
+    server = {"command": python, "args": [str(CODE_DIR / "mcp_server.py")], "env": environment}
     configs = {
+        "cursor.mcp.json": {"mcpServers": {"agent-collab": server}},
         "claude.mcp.json": {"mcpServers": {"agent-collab": {"type": "stdio", **server}}},
         "antigravity.mcp.json": {"mcpServers": {"agent-collab": server}},
+        "cortex.mcp.json": {"mcpServers": {"agent-collab": {"type": "stdio", **server}}},
     }
 
     def hook(client: str, agent: str, event: str) -> dict:
@@ -56,8 +65,8 @@ def generate(workspace: Path, output: Path, python: str = sys.executable) -> lis
         "[mcp_servers.agent-collab]\n"
         f"command = {json.dumps(python)}\n"
         f"args = [{json.dumps(str(CODE_DIR / 'mcp_server.py'))}]\n"
-        "\n[mcp_servers.agent-collab.env]\n"
-        f"COLLAB_WORKSPACE = {json.dumps(str(workspace))}\n", encoding="utf-8")
+        "\n[mcp_servers.agent-collab.env]\n" +
+        "".join(f"{key} = {json.dumps(value)}\n" for key, value in environment.items()), encoding="utf-8")
     written.append(toml)
     return written
 
@@ -66,9 +75,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", type=Path, default=workspace_root())
     parser.add_argument("--output", type=Path, help="Default: WORKSPACE/client-configs")
+    parser.add_argument("--allow-consults", action="store_true", help="Opt in to external, potentially paid model consultations")
+    parser.add_argument("--max-concurrent-consults", type=int, default=2)
+    parser.add_argument("--max-consults-per-hour", type=int, default=10)
     args = parser.parse_args()
     workspace = args.workspace.expanduser().resolve()
-    written = generate(workspace, args.output or workspace / "client-configs")
+    if args.max_concurrent_consults < 1 or args.max_consults_per_hour < 1:
+        parser.error("Consultation limits must be positive integers")
+    written = generate(workspace, args.output or workspace / "client-configs", allow_consults=args.allow_consults,
+                       max_concurrent_consults=args.max_concurrent_consults,
+                       max_consults_per_hour=args.max_consults_per_hour)
     print("Generated configuration for workspace: " + str(workspace))
     for path in written:
         print("  " + str(path))

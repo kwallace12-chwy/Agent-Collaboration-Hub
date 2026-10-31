@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -144,10 +145,17 @@ class DesktopTests(unittest.TestCase):
         processes = [subprocess.Popen([sys.executable, str(script)], stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE, text=True) for _ in range(2)]
         results = []
-        for process in processes:
-            output, error = process.communicate(timeout=15)
-            self.assertEqual(process.returncode, 0, error)
-            results.append(json.loads(output))
+        try:
+            # Reap both launchers before asserting, including when one failed.
+            outputs = [process.communicate(timeout=15) for process in processes]
+            for process, (output, error) in zip(processes, outputs):
+                self.assertEqual(process.returncode, 0, error)
+                results.append(json.loads(output))
+        finally:
+            for process in processes:
+                if process.poll() is None:
+                    process.kill()
+                process.communicate(timeout=5)
         self.assertEqual(results[0]["pid"], results[1]["pid"])
 
 
@@ -241,6 +249,59 @@ class InstalledAppIntegrationTests(unittest.TestCase):
                 if launched:
                     stopped = json.loads(run("scripts/desktop.py", "stop", "--workspace", str(workspace), "--port", str(port)))
                     self.assertTrue(stopped["stopped"])
+
+
+@unittest.skipUnless(os.name == "nt", "Requires native Windows command and shortcut support")
+class WindowsLauncherTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="collab-windows-launch-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name).resolve()
+        self.app = self.root / "app with spaces"
+        self.workspace = self.root / "workspace 100% & test!"
+        self.desktop = self.root / "temporary desktop"
+        (self.app / "scripts").mkdir(parents=True)
+        self.workspace.mkdir()
+        (self.app / "scripts" / "desktop.py").write_text(
+            "import json,sys\nfrom pathlib import Path\n"
+            "workspace=Path(sys.argv[sys.argv.index('--workspace')+1])\n"
+            "(workspace/'launched.json').write_text(json.dumps(sys.argv[1:]),encoding='utf-8')\n",
+            encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("native_windows_shortcuts", ROOT / "scripts" / "install_desktop.py")
+        self.shortcuts = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.shortcuts)
+
+    def test_command_shortcut_executes_with_spaces_and_shell_characters(self):
+        with patch.object(self.shortcuts.shutil, "which", return_value=None):
+            shortcut = self.shortcuts.create_shortcut(self.app, self.workspace, self.desktop,
+                                                       sys.executable, "win32")
+        self.assertEqual(Path(shortcut["path"]).suffix, ".cmd")
+        result = subprocess.run([os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", shortcut["path"]],
+                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        args = json.loads((self.workspace / "launched.json").read_text(encoding="utf-8"))
+        self.assertEqual(args, ["--workspace", str(self.workspace)])
+
+    def test_native_shortcut_preserves_interpreter_workspace_and_working_directory(self):
+        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        self.assertIsNotNone(powershell, "Windows CI must verify the PowerShell/COM shortcut path")
+        shortcut = self.shortcuts.create_shortcut(self.app, self.workspace, self.desktop,
+                                                   sys.executable, "win32")
+        self.assertEqual(Path(shortcut["path"]).suffix, ".lnk")
+        quoted = "'" + shortcut["path"].replace("'", "''") + "'"
+        script = ("$ErrorActionPreference='Stop';$w=New-Object -ComObject WScript.Shell;"
+                  f"$s=$w.CreateShortcut({quoted});"
+                  "[pscustomobject]@{TargetPath=$s.TargetPath;Arguments=$s.Arguments;"
+                  "WorkingDirectory=$s.WorkingDirectory}|ConvertTo-Json -Compress")
+        result = subprocess.run([powershell, "-NoProfile", "-NonInteractive", "-Command", script],
+                                capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        details = json.loads(result.stdout)
+        pythonw = Path(sys.executable).with_name("pythonw.exe")
+        self.assertEqual(Path(details["TargetPath"]).resolve(), pythonw if pythonw.exists() else Path(sys.executable))
+        self.assertEqual(Path(details["WorkingDirectory"]).resolve(), self.app)
+        self.assertEqual(details["Arguments"], subprocess.list2cmdline(
+            [str(self.app / "scripts" / "desktop.py"), "--workspace", str(self.workspace)]))
 
 
 if __name__ == "__main__":

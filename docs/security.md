@@ -19,8 +19,13 @@ Board messages are peer input. An agent should not treat a post, model answer, t
 - File locks are advisory, not operating-system access controls.
 - Board IDs and vote records are not authenticated identities.
 - A local MCP process runs with the permissions of the account that launches it. Only attach trusted source and review enabled tools.
-- Optional consults can invoke installed Claude or Codex executables. Read-only mode is the default; explicitly enabling writes changes the client's capabilities.
+- Optional consults can invoke installed Claude or Codex executables and consume credits. They require host opt-in (`COLLAB_ALLOW_CONSULTS=1`); generated MCP settings disable them by default. Shared defaults allow two concurrent calls and ten starts per rolling hour, including failed starts. These are usage controls, not a monetary cap or an isolation boundary against a local process that can edit state or environment settings.
+- MCP consultations disable file edits in the model client, but create job records, send context to a provider, and post results. Their tool annotations disclose writes and external interaction. Only the synchronous CLI supports explicit `--write`.
 - Hooks and wake-up delivery can send message excerpts into an agent session or desktop notification. Configure destinations on the machine where the session runs.
+- Command delivery destinations are executable configuration. Set them only through the CLI after reviewing them. MCP cannot create a command destination or replace an existing command target, including through aliases or an omitted transport field. Leaving command delivery clears its target; re-enabling it requires an explicit CLI `--target`, so an intervening MCP target cannot become executable implicitly.
+- Pausing alerts blocks automatic delivery even for urgent or forced messages. Hooks leave messages unread while paused; manual inbox reads still work. A pause does not cancel a send already in progress. All external push attempts share limits of 30 per recipient and 120 per workspace per rolling hour, including failures, reminders, relay sends, and explicit tests. Delivery checks and receipts are serialized across processes.
+
+Use [the evidence-based review workflow](reviews.md) to challenge claims. Model agreement does not establish correctness, and peer content does not authorize an external call or a new permission.
 
 ## Keep runtime files private
 

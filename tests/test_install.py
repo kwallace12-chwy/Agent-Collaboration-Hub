@@ -25,7 +25,7 @@ spec2.loader.exec_module(shortcuts)
 class InstallTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="collab-install-test-")
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.source = self.root / "source checkout"
         for name in installer.REQUIRED:
             target = self.source / name
@@ -107,6 +107,21 @@ class InstallTests(unittest.TestCase):
         self.assertEqual((self.app / "collab.py").read_text(), "# new version\n")
         self.assertEqual((self.data / "notes.txt").read_text(), "keep")
 
+    def test_interrupted_first_install_can_resume_from_its_pending_marker(self):
+        with patch.object(installer.shutil, "copyfile", side_effect=OSError("simulated copy failure")):
+            with self.assertRaisesRegex(OSError, "simulated copy failure"):
+                installer.install(self.app, self.data, None, source=self.source, platform="linux")
+        marker = json.loads((self.app / installer.MARKER).read_text(encoding="utf-8"))
+        self.assertEqual(marker["install_dir"], str(self.app))
+        self.assertEqual(marker["status"], "pending")
+        self.assertFalse((self.app / "collab.py").exists())
+
+        installer.install(self.app, self.data, None, source=self.source, platform="linux")
+
+        completed = json.loads((self.app / installer.MARKER).read_text(encoding="utf-8"))
+        self.assertEqual(completed["status"], "complete")
+        self.assertTrue((self.app / "collab.py").is_file())
+
     def test_refuses_unrelated_nonempty_install_folder_and_nested_data(self):
         self.app.mkdir()
         (self.app / "mine.txt").write_text("preserve", encoding="utf-8")
@@ -121,6 +136,31 @@ class InstallTests(unittest.TestCase):
         self.assertNotIn("shortcut", result)
         self.assertTrue(Path(result["launcher"]).exists())
         self.assertFalse(self.desktop.exists())
+
+    def test_real_install_generates_stable_client_paths_and_workspace_consult_context(self):
+        installer.install(self.app, self.data, None, source=ROOT)
+        environment = {**os.environ, "COLLAB_WORKSPACE": str(self.data), "COLLAB_ALLOW_CONSULTS": "0",
+                       "COLLAB_DISABLE_EXTERNAL_DELIVERY": "1", "COLLAB_ALERTS_AUTOSTART": "0"}
+        generated = subprocess.run([sys.executable, str(self.app / "setup_clients.py"),
+                                    "--workspace", str(self.data)], cwd=self.data, env=environment,
+                                   text=True, capture_output=True, timeout=20)
+        self.assertEqual(generated.returncode, 0, generated.stderr)
+        client = json.loads((self.data / "client-configs" / "claude.mcp.json").read_text())
+        self.assertEqual(client["mcpServers"]["agent-collab"]["args"], [str(self.app / "mcp_server.py")])
+        self.assertEqual(client["mcpServers"]["agent-collab"]["env"]["COLLAB_ALLOW_CONSULTS"], "0")
+        context = subprocess.run([sys.executable, "-c", "import sys;sys.path.insert(0,sys.argv[1]);"
+                                  "import ask;print(ask.framing('synthetic-reviewer'))", str(self.app)],
+                                 cwd=self.data, env=environment, text=True, capture_output=True, timeout=20)
+        self.assertEqual(context.returncode, 0, context.stderr)
+        self.assertIn(str(self.app / "AGENTS.md"), context.stdout)
+        self.assertIn(str(self.data / "BOARD.md"), context.stdout)
+        self.assertIn("Authority and privacy", context.stdout)
+        self.assertNotIn("./collab read", context.stdout)
+        disabled = subprocess.run([sys.executable, str(self.app / "ask.py"), "codex", "Synthetic prompt"],
+                                  cwd=self.data, env=environment, text=True, capture_output=True, timeout=20)
+        self.assertEqual(disabled.returncode, 1)
+        self.assertIn("Consultations are disabled", disabled.stderr)
+        self.assertFalse((self.data / "state" / "asks").exists())
 
     def test_mac_app_contains_executable_and_valid_plist(self):
         result = self.install(platform="darwin")

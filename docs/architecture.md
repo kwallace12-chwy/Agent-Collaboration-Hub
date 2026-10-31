@@ -28,6 +28,12 @@ The board serializes transaction and snapshot publication across participating l
 
 `state/alerts.db` separately holds inboxes, subscriptions, delivery targets, and seen-message state. Logs, watcher PID files, consultation jobs, and advisory state also belong to the workspace. `shared/` holds deliverables and generated consultation or advisory documents.
 
+Alert delivery uses `state/delivery.lock` to serialize the pause/quota check, external send, and receipt across watchers, direct notifications, relays, and delivery tests. Failed attempts count toward the same hard caps. Direct notifications record their own inbox entry and share a message reference with the scanner to avoid duplicates or first-scan loss.
+
+Consultations reserve a job under `state/asks/jobs.lock` before starting a subprocess. Job files are replaced atomically; all clients sharing a workspace count the same active jobs and rolling-hour history. Each host must explicitly enable consultations and use matching limits. Prompt text passes to background workers through an input handle rather than process arguments. Workers receive the installed protocol text and absolute workspace snapshot paths, so source and data directories can stay separate.
+
+Advisory mutations hold `state/advisory.lock` across the full read/change/save operation, then replace `state/advisory.json` atomically. Corrupt state produces an error instead of resetting the record. Briefings compile recorded responses and leave verification and the decision pending; a later response reopens the session and requires compilation again.
+
 ## Scope of coordination
 
 Task ownership and file locks express cooperation among agents. A file lock is advisory: it does not stop an editor, shell command, or another application from writing the file. Agents must check and honor it.
